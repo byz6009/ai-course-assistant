@@ -14,7 +14,7 @@
 
 PR #2 的开放时间误当截止、详情正文遗漏、Windows SQLite 连接未关闭问题已修复并加入回归测试。测试启动命令不再硬编码 `python3`。
 
-当前改动保留在本地工作区，未代替组员 commit、push、合并 PR 或填写贡献。PR #2 尚未合并，因此将来提交本阶段时应以阶段二分支为比较基线，或在阶段二合入 main 后由人整理目标分支。
+用户于 2026-11-18 明确授权提交本轮变更。[PR #6](https://github.com/chaomianpkp/ai-course-assistant/pull/6) 已创建，软件提交为 `e02d939`，以尚未合并的 `stage2/public-pr` 为基线。当前 Git 账号 `byz6009` 无上游推送权限，因此通过个人 Fork 的 `feature/stage3-replay` 分支提交。此次没有合并 PR 或修改上游分支，成员贡献与人工评审仍待组内核对。远端 CI 核查时尚无运行记录。
 
 ## 已完成的软件内容
 
@@ -46,6 +46,7 @@ PR #2 的开放时间误当截止、详情正文遗漏、Windows SQLite 连接�
 - [演示与验收步骤](demo.md)
 - [8 分钟课堂汇报与现场演示指南](presentation-demo.md)
 - [验证报告](test-report.md)
-- [拟提交变更说明](release-review.md)
+- [第三阶段变更说明与 PR](release-review.md)
+- [同步 PPT 的逐字稿与演示台词](presentation-script.md)
 
 本目录提供代码与软件交接材料，课堂汇报稿及演示指南已准备。实际课堂报告、组员人工评审、真实课程与模型验收、课程网盘提交仍由项目组完成，不在文件中虚构为已完成。
