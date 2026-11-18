@@ -4,12 +4,13 @@ import { useCourseStore } from '../composables/useCourseStore'
 import { usePlatform } from '../composables/usePlatform'
 import { useRouter } from '../router'
 
-const { data, load, setDone } = useCourseStore()
+const { data, load, setDone, setTaskDone } = useCourseStore()
 const { state } = usePlatform()
 const { push } = useRouter()
 const error = ref('')
 const saving = ref([])
 const filter = ref('pending')
+const taskFilter = ref('pending')
 const courseName = (id) => data.courses.find((c) => c.id === id)?.name || id
 const matches = (item) => state.courseId === 'all' || item.courseId === state.courseId
 const schedules = computed(() => (data.schedules || []).filter(matches).sort((a,b)=>a.weekday-b.weekday || a.startTime.localeCompare(b.startTime)))
@@ -18,6 +19,15 @@ const materials = computed(() => data.materials.filter(matches))
 const deadlines = computed(() => data.deadlines.filter(matches).filter((d) => filter.value === 'all' || (filter.value === 'done' ? d.done : !d.done)).sort((a, b) => new Date(a.due) - new Date(b.due)))
 const unknownDeadlines = computed(() => data.materials.filter(matches).filter(d => d.category === '作业要求' && d.dueInfo && !d.dueInfo.due))
 const pending = computed(() => data.deadlines.filter(matches).filter((d) => !d.done).length)
+const tasks = computed(() => data.tasks.filter(matches).filter(t => taskFilter.value === 'all' || (taskFilter.value === 'done' ? t.done : !t.done)))
+const pendingTasks = computed(() => data.tasks.filter(matches).filter(t => !t.done).length)
+async function changeTask(item, done) {
+  saving.value.push(item.id)
+  error.value = ''
+  try { await setTaskDone(item.id, done) }
+  catch (e) { error.value = e.message }
+  finally { saving.value = saving.value.filter(id => id !== item.id) }
+}
 async function change(item, done) {
   saving.value.push(item.id)
   error.value = ''
@@ -29,12 +39,22 @@ const format = (due) => new Date(due).toLocaleString('zh-CN', { timeZone: 'Asia/
 </script>
 <template>
   <main class="page">
-    <p class="kicker">课程看板 · 第二阶段</p>
-    <h1>资料与截止，回到同一门课</h1>
+    <p class="kicker">课程看板 · 第三阶段</p>
+    <h1>课表、截止与复习，回到同一门课</h1>
     <p class="lead">这里展示已保存的课程资料和你确认的截止时间。导入不包含个人提交记录，请核对后标记完成；标记仅用于个人跟进，不代表已向教学网提交。</p>
-    <div class="stats"><article><strong>{{ data.courses.length }}</strong><span>已导入课程</span></article><article><strong>{{ materials.length }}</strong><span>当前课程资料</span></article><article><strong>{{ pending }}</strong><span>未标记完成</span></article></div>
-    <div class="actions"><button class="primary" @click="push('/materials')">添加或查找资料</button><button class="ghost" :disabled="data.loading" @click="load">刷新课程数据</button></div>
+    <div class="stats"><article><strong>{{ data.courses.length }}</strong><span>已导入课程</span></article><article><strong>{{ materials.length }}</strong><span>当前课程资料</span></article><article><strong>{{ pending + pendingTasks }}</strong><span>待办作业与学习任务</span></article></div>
+    <div class="actions"><button class="primary" @click="push('/materials')">添加或查找资料</button><button class="ghost" @click="push('/replay')">整理课程回放</button><button class="ghost" :disabled="data.loading" @click="load">刷新课程数据</button></div>
     <p v-if="error" class="note block" role="alert">{{ error }}</p>
+    <section aria-label="回放学习任务">
+      <div class="section-title"><h2>回放学习任务</h2><select v-model="taskFilter" aria-label="筛选学习任务"><option value="pending">待完成</option><option value="done">已完成</option><option value="all">全部</option></select></div>
+      <div class="stack"><article v-for="item in tasks" :key="item.id" class="task" :class="{ done: item.done }">
+        <input type="checkbox" :checked="item.done" :disabled="saving.includes(item.id)" :aria-label="`完成学习任务：${item.title}`" @change="changeTask(item, $event.target.checked)" />
+        <div><span class="badge pine">{{ item.done ? '已完成复习' : '已确认 · 待复习' }}</span><h3>{{ item.title }}</h3><p class="meta">{{ courseName(item.courseId) }} · {{ item.sourceTitle }} · 摘要 v{{ item.version }}</p>
+          <details><summary>查看已确认知识点和引用</summary><article v-for="chapter in item.chapters" :key="chapter.id"><h4>{{ chapter.title }}</h4><p class="source-content">{{ chapter.summary }}</p><p v-for="cue in chapter.citations" :key="cue.id" class="meta">{{ cue.start }}–{{ cue.end }} 秒：{{ cue.text }}</p></article></details>
+          <button class="cite" @click="push(`/replay?id=${item.replayId}&version=${item.version}`)">返回确认时的回放摘要 →</button>
+        </div>
+      </article><p v-if="!tasks.length" class="empty">{{ taskFilter === 'done' ? '还没有已完成的复习任务。' : '暂无符合条件的学习任务。在回放页核对摘要后，可确认加入看板。' }}</p></div>
+    </section>
     <section aria-label="课程课表"><div class="section-title"><h2>课程课表</h2></div>
       <div class="stack"><article v-for="item in schedules" :key="item.id" class="material"><span class="badge">{{ courseName(item.courseId) }}</span><h3>周{{ weekday(item.weekday) }} {{ item.startTime }}–{{ item.endTime }}（北京时间）</h3><p>第 {{ item.periods || '待确认' }} 节 · {{ item.location }}</p><p class="meta">{{ item.note }}</p><a class="cite" :href="item.source.url" target="_blank" rel="noopener noreferrer">核对课表原页 ↗</a><details><summary>查看课表原文</summary><p>{{ item.rawText }}</p><p class="meta">{{ item.source.title }} · {{ item.source.locator }} · 版本 {{ item.version }}</p></details></article><p v-if="!schedules.length" class="empty">尚未导入可确认的课表。请从课程信息页采集，或导入带来源的课表清单；不以示例课表替代。</p></div>
     </section>

@@ -1,0 +1,18 @@
+{
+  "course": { "id": "stage3-demo", "name": "软件工程 · 合成演示课程" },
+  "materials": [{
+    "title": "迭代验收说明（合成示例）", "category": "课程说明",
+    "content": "这是合成演示材料，不是实际课程通知。演示资料导入、字幕整理、来源核对、确认学习任务和看板完成状态。",
+    "source": { "title": "课迹合成演示资料", "url": "https://example.org/keji/stage3", "locator": "演示材料，不是实际课程来源" }
+  }],
+  "deadlines": [{
+    "title": "第三阶段演示准备（示例）", "due": "2026-11-19T09:00:00+08:00",
+    "source": { "title": "课迹合成演示安排", "url": "https://example.org/keji/stage3", "locator": "示例时间，不是教学安排" }
+  }],
+  "schedules": [{
+    "title": "课程演示（示例）", "weekday": 4, "startTime": "09:00", "endTime": "10:50",
+    "periods": "示例", "location": "示例教室", "rawText": "合成演示课表：周四 09:00-10:50，示例教室。",
+    "note": "仅供软件演示，不代表实际课程时间地点。",
+    "source": { "title": "课迹合成演示课表", "url": "https://example.org/keji/stage3", "locator": "示例课表" }
+  }]
+}

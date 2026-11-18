@@ -7,6 +7,28 @@ const doc=(html)=>parseHTML(html).document;
 const url='https://course.pku.edu.cn/webapps/blackboard/content/listContent.jsp?course_id=_1_1&content_id=_10_1';
 const shell=(html)=>`<div id="breadcrumbs"><a href="/webapps/blackboard/execute/courseMain?course_id=_1_1">测试课程</a></div><div id="courseMenuPalette_contents"><a href="${url}">课程作业</a></div><div id="content">${html}</div>`;
 
+test('review regression: opening dates never become deadlines', () => {
+ const result = parser.resolveDue({text:'开放日期：2026年11月12日10:00，截止日期：2026年11月19日23:59'}, null, 2026);
+ assert.equal(result.due, '2026-11-19T23:59:00+08:00');
+ assert.equal(result.conflict, false);
+ assert.equal(parser.resolveDue({text:'2026年11月12日10:00开放'}, null, 2026).due, null);
+ assert.equal(parser.resolveDue({text:'开放日期：2026年11月12日10:00'}, {systemDue:'2026年11月19日23:59'}, 2026).evidence.length, 1);
+ assert.equal(parser.resolveDue({text:'2026年11月19日23:59前提交'}, null, 2026).due, '2026-11-19T23:59:00+08:00');
+});
+
+test('review regression: detail-only instructions are preserved and combined', () => {
+ const page = {url, items: []};
+ const item = {id:'_a_1', title:'作业', url, text:'', attachments:[], detail:{instructions:'完整要求：绘制类图，截止2026年11月19日23:59'}};
+ const pages = {notices:page, courseware:page, assignments:{url, items:[item]}};
+ let result = parser.bundle({id:'_1_1',name:'测试'},pages,'2026-11-11T00:00:00Z');
+ assert.equal(result.materials[0].content, item.detail.instructions);
+ assert.equal(result.deadlines.length, 1);
+ item.text = '列表摘要';
+ result = parser.bundle({id:'_1_1',name:'测试'},pages,'2026-11-11T00:00:00Z');
+ assert.ok(result.materials[0].content.includes('列表摘要'));
+ assert.ok(result.materials[0].content.includes('完整要求'));
+});
+
 test('discovers only current course links and rejects expired login',()=>{
  assert.equal(parser.documentInfo(doc(shell('')),url).id,'_1_1');
  assert.throws(()=>parser.documentInfo(doc('<input type="password">'),url),/登录/);

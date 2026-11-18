@@ -10,3 +10,8 @@ dist-ssr
 .local-data/
 __pycache__/
 *.pyc
+.env
+.env.*
+!.env.example
+test-results/
+.runtime/

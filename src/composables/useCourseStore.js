@@ -1,17 +1,22 @@
 import { reactive } from 'vue'
 
-const data = reactive({ courses: [], materials: [], deadlines: [], schedules: [], collections: [], loading: false, loaded: false, error: '' })
+const data = reactive({ courses: [], materials: [], deadlines: [], schedules: [], collections: [], replays: [], tasks: [], loading: false, loaded: false, error: '' })
 
-async function request(path, options = {}) {
-  let response
+export async function request(path, options = {}) {
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 30000)
   try {
-    response = await fetch(path, { ...options, headers: { 'Content-Type': 'application/json', ...options.headers } })
-  } catch {
-    throw new Error('无法连接本地课程服务，请检查服务是否正在运行。')
+    const response = await fetch(path, { ...options, signal: controller.signal, headers: { 'Content-Type': 'application/json', ...options.headers } })
+    const body = await response.json().catch(() => ({ error: '服务没有返回有效数据，请检查本地课程服务。' }))
+    if (!response.ok) throw new Error(body.error || '请求失败，请重试。')
+    return body
+  } catch (error) {
+    if (error.name === 'AbortError') throw new Error('请求超时，请检查连接后重试；已保存的数据会保留。')
+    if (error instanceof TypeError) throw new Error('无法连接本地课程服务，请检查服务是否正在运行。')
+    throw error
+  } finally {
+    clearTimeout(timer)
   }
-  const body = await response.json().catch(() => ({ error: '服务没有返回有效数据，请检查本地课程服务。' }))
-  if (!response.ok) throw new Error(body.error || '请求失败，请重试。')
-  return body
 }
 
 async function load() {
@@ -40,6 +45,12 @@ async function setDone(id, done) {
   if (record) record.done = result.done
 }
 
+async function setTaskDone(id, done) {
+  const result = await request(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify({ done }) })
+  const record = data.tasks.find((item) => item.id === id)
+  if (record) record.done = result.done
+}
+
 export function useCourseStore() {
-  return { data, load, importBundle, setDone, connector: () => request('/api/connector'), history: (id) => request(`/api/records/${id}/history`) }
+  return { data, load, importBundle, setDone, setTaskDone, connector: () => request('/api/connector'), history: (id) => request(`/api/records/${id}/history`) }
 }

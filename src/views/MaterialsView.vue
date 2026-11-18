@@ -2,9 +2,11 @@
 import { computed, ref } from 'vue'
 import { useCourseStore } from '../composables/useCourseStore'
 import { usePlatform } from '../composables/usePlatform'
+import { useRouter } from '../router'
 
 const { data, importBundle, history, connector, load } = useCourseStore()
 const { state } = usePlatform()
+const { push } = useRouter()
 const pairingCode = ref('')
 async function copyConnection() {
   try { pairingCode.value = (await connector()).pairingCode; await navigator.clipboard.writeText(pairingCode.value); message.value = '连接码已复制，请粘贴到教学网导入助手。'; }
@@ -25,6 +27,7 @@ const visible = computed(() => data.materials.filter((item) => matches(item) &&
   (category.value === 'all' || item.category === category.value) &&
   `${item.title} ${item.content} ${item.source.title} ${item.source.locator}`.toLocaleLowerCase().includes(keyword.value.trim().toLocaleLowerCase())))
 const categories = computed(() => [...new Set(data.materials.map((item) => item.category))])
+const replaySources = computed(() => data.replays.filter(item => matches(item) && `${item.title} ${item.filename}`.toLowerCase().includes(keyword.value.trim().toLowerCase())))
 const courseName = (id) => data.courses.find((c) => c.id === id)?.name || id
 
 async function submit(bundle) {
@@ -66,9 +69,10 @@ async function showHistory(id) {
 
 <template>
   <main class="page">
-    <p class="kicker">资料收集 · 第二阶段</p>
+    <p class="kicker">资料收集 · 第三阶段</p>
     <h1>把课程材料和出处一起收好</h1>
     <p class="lead">从已登录的教学网课程采集通知、作业与课件目录，预览后保存到课迹。也可以手动补充材料。</p>
+    <section v-if="replaySources.length" aria-label="课程字幕资料"><div class="section-title"><h2>课程字幕资料</h2><button class="ghost" @click="push('/replay')">导入回放字幕</button></div><div class="stack"><article v-for="item in replaySources" :key="item.id" class="material"><span class="badge pine">{{ courseName(item.courseId) }}</span><h3>{{ item.title }}</h3><p class="meta">{{ item.filename }} · {{ item.cueCount }} 段原文 · {{ item.latestVersion ? '已保存摘要' : '待整理' }}</p><button class="cite" @click="push(`/replay?id=${item.id}`)">查看字幕、摘要与来源 →</button></article></div></section>
     <p v-if="message" class="note ok" role="status">{{ message }}</p>
     <p v-if="error" class="note block" role="alert">{{ error }}</p>
     <section class="detail import-box" aria-label="教学网导入">

@@ -1,4 +1,5 @@
 import copy
+from contextlib import closing
 import json
 from pathlib import Path
 import tempfile
@@ -55,7 +56,7 @@ class RepositoryTests(unittest.TestCase):
         bundle = CourseImport.parse(fixture())
         # Force a constraint failure after the first row, proving rollback.
         bundle.records[1]['id'] = None
-        with self.repo.connect() as db:
+        with closing(self.repo.connect()) as db, db:
             db.execute("CREATE TRIGGER reject_invalid BEFORE INSERT ON records WHEN NEW.id IS NULL BEGIN SELECT RAISE(ABORT, 'bad id'); END")
         with self.assertRaises(sqlite3.IntegrityError):
             self.repo.save_import(bundle)
@@ -106,14 +107,19 @@ class ApiTests(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
-        cls.server.shutdown(); cls.server.server_close(); cls.thread.join(); cls.temp.cleanup()
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.thread.join()
+        cls.server.RequestHandlerClass.replay_service.close()
+        cls.temp.cleanup()
 
     def request(self, path, data=None, method=None, headers=None):
         request = Request(self.base + path, data=json.dumps(data).encode() if data is not None else None,
                           method=method, headers=headers or {'Content-Type': 'application/json'})
         try:
             with urlopen(request) as result: return result.status, json.load(result)
-        except HTTPError as e: return e.code, json.load(e)
+        except HTTPError as e:
+            with e: return e.code, json.load(e)
 
     def test_api_import_read_and_complete(self):
         self.assertEqual(self.request('/api/imports', fixture(), 'POST')[0], 200)

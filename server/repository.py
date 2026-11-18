@@ -31,6 +31,21 @@ class CourseRepository:
         db.row_factory = sqlite3.Row
         return db
 
+    def create_course(self, body):
+        from server.domain import ValidationError, text
+        import re
+        if not isinstance(body, dict):
+            raise ValidationError('课程必须为 JSON 对象')
+        course = {'id': text(body, 'id', 80), 'name': text(body, 'name', 200)}
+        if not re.fullmatch(r'[A-Za-z0-9_-]+', course['id']):
+            raise ValidationError('课程编号只能包含字母、数字、下划线或横线')
+        with closing(self.connect()) as db, db:
+            existing = db.execute('SELECT * FROM courses WHERE id=?', (course['id'],)).fetchone()
+            if existing and existing['name'] != course['name']:
+                raise ValidationError('课程编号已存在，请使用原课程或换一个编号')
+            db.execute('INSERT OR IGNORE INTO courses VALUES (?,?)', (course['id'], course['name']))
+        return course
+
     def save_import(self, bundle):
         now = datetime.now(timezone.utc).isoformat()
         counts = {'inserted': 0, 'updated': 0, 'unchanged': 0}

@@ -6,6 +6,8 @@ import HelloView from './views/HelloView.vue'
 import MaterialsView from './views/MaterialsView.vue'
 import PrepView from './views/PrepView.vue'
 import ReplayView from './views/ReplayView.vue'
+import AISettingsView from './views/AISettingsView.vue'
+import ReplayDemoView from './views/ReplayDemoView.vue'
 import DashboardDemoView from './views/DashboardDemoView.vue'
 import MaterialsDemoView from './views/MaterialsDemoView.vue'
 import { useCourseStore } from './composables/useCourseStore'
@@ -16,7 +18,8 @@ import { useRouter } from './router'
 const nav = [
   { to: '/', label: '课程看板', hint: '时间、教室、截止' },
   { to: '/materials', label: '资料收集', hint: '课件、书和相关课' },
-  { to: '/replay', label: '回放整理（原型）', hint: '转写、摘要、知识点' },
+  { to: '/replay', label: '回放整理', hint: '字幕、摘要、学习任务' },
+  { to: '/settings/ai', label: 'AI 服务设置', hint: '连接模型、测试与教程' },
   { to: '/assignments', label: '作业辅导（原型）', hint: '来源和可确认草稿' },
   { to: '/prep', label: '备考（原型）', hint: '大纲、旧题、模拟' },
 ]
@@ -25,17 +28,20 @@ const views = {
   '/': DashboardView,
   '/materials': MaterialsView,
   '/replay': ReplayView,
+  '/settings/ai': AISettingsView,
   '/assignments': AssignmentsView,
   '/prep': PrepView,
   '/test/hello': HelloView,
   '/demo/dashboard': DashboardDemoView,
   '/demo/materials': MaterialsDemoView,
+  '/demo/replay': ReplayDemoView,
 }
 
 const titles = {
   '/': '课程看板',
   '/materials': '资料收集',
   '/replay': '回放整理',
+  '/settings/ai': 'AI 服务设置',
   '/assignments': '作业辅导',
   '/prep': '备考',
   '/test/hello': 'hello world',
@@ -44,7 +50,7 @@ const titles = {
 const { path, push } = useRouter()
 const { state, courses: demoCourses, resetDemo } = usePlatform()
 const { data, load } = useCourseStore()
-const isLive = computed(() => ['/', '/materials'].includes(path.value))
+const isLive = computed(() => ['/', '/materials', '/replay', '/settings/ai'].includes(path.value))
 const courses = computed(() => isLive.value ? data.courses : demoCourses)
 onMounted(load)
 watch([path, () => data.courses.length], () => {
@@ -89,7 +95,7 @@ function open(to) {
         </button>
       </nav>
       <div class="rail-foot">
-        <p>看板与资料由本地服务保存。回放、作业辅导与备考为第一阶段原型。</p>
+        <p>第三阶段 · 看板、资料与回放保存在本机。作业辅导和备考仍为原型。</p>
         <button type="button" @click="resetDemo">重置原型状态</button>
         <button class="hello-link" type="button" @click="open('/test/hello')">/test/hello</button>
       </div>

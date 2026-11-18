@@ -67,11 +67,22 @@
     const assessmentDue = /到期日期[\s\S]{0,80}?((?:20\d{2})年\d{1,2}月\d{1,2}日[\s\S]{0,35}?(?:\d{1,2}[:时]\d{1,2})(?:分)?)/.exec(mainText)?.[1] || '';
     return {systemDue: contentText(due?.querySelector('.metaField')) || assessmentDue, instructions:contentText(doc.querySelector('#instructions'))};
   }
-  function dates(text, year, label) {
+  function dates(text, year, label, deadlinesOnly = false) {
     const result = [];
     const normalized = clean(text).replace(/[：]/g, ':');
     const pattern = /(?:(20\d{2})年)?(\d{1,2})月(\d{1,2})日(?:\s*星期[一二三四五六日天])?\s*(凌晨|上午|中午|下午|晚上|晚)?\s*(\d{1,2})(?::|时)(\d{1,2})(?:分)?/g;
     for (const match of normalized.matchAll(pattern)) {
+      if (deadlinesOnly) {
+        const before = normalized.slice(Math.max(0, match.index - 45), match.index).split(/[。；;\n，,]/).pop();
+        const after = normalized.slice(match.index + match[0].length, match.index + match[0].length + 20);
+        const deadlineWord = /截止|到期|最晚|提交期限|提交时间|due|deadline/ig;
+        const openingWord = /开放|开始|发布|可用|开课|start|available/ig;
+        const dueAt = [...before.matchAll(deadlineWord)].at(-1)?.index ?? -1;
+        const openAt = [...before.matchAll(openingWord)].at(-1)?.index ?? -1;
+        const dueAfter = /^\s*(?:之前|前)?\s*(?:截止|到期|提交|交齐)/.test(after);
+        const openAfter = /^\s*(?:起|开始)?\s*(?:开放|发布|可用|开始)/.test(after);
+        if (openAfter || (!dueAfter && (dueAt < 0 || openAt > dueAt))) continue;
+      }
       let hour = Number(match[5]);
       if (/下午|晚上|晚/.test(match[4] || '') && hour < 12) hour += 12;
       if (/凌晨|上午/.test(match[4] || '') && hour === 12) hour = 0;
@@ -84,8 +95,8 @@
   }
   function resolveDue(item, detail, year) {
     const system = dates(detail?.systemDue || '', year, '系统到期日期');
-    const body = dates(item.text, year, '作业列表正文');
-    const instruction = dates(detail?.instructions || '', year, '作业要求正文');
+    const body = dates(item.text, year, '作业列表正文', true);
+    const instruction = dates(detail?.instructions || '', year, '作业要求正文', true);
     const evidence = [...system,...body,...instruction].filter((v,i,a)=>a.findIndex(x=>x.due===v.due && x.source===v.source)===i);
     const unique = [...new Set(evidence.map(x=>x.due))];
     return {due:unique.sort()[0] || null, conflict:unique.length>1, evidence,
@@ -114,7 +125,8 @@
     for(const item of pages.assignments.items) {
       const dueInfo=resolveDue(item,item.detail,year);
       const src=source(item.url,course.name+' · 课程作业',item.id);
-      materials.push({title:item.title, category:'作业要求', content:item.text || '作业要求请打开原始页面核对。', source:src,
+      const requirements = [...new Set([item.text, item.detail?.instructions].filter(Boolean))].join('\n\n');
+      materials.push({title:item.title, category:'作业要求', content:requirements || '作业要求请打开原始页面核对。', source:src,
         origin:{provider:'pku-blackboard',section:'assignments',itemKey:item.id}, attachments:item.attachments, dueInfo});
       if(dueInfo.due) deadlines.push({title:item.title,due:dueInfo.due,source:src,dueInfo,origin:{provider:'pku-blackboard',section:'assignments',itemKey:item.id}});
     }
